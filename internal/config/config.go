@@ -3,7 +3,6 @@ package config
 
 import (
 	"os"
-	"path"
 	"path/filepath"
 
 	"github.com/spf13/viper"
@@ -11,14 +10,23 @@ import (
 
 type Config struct {
 	RepoURL string `mapstructure:"repo_url"`
+	RepoPath string `mapstructure:"repo_path"`
 }
 
+// dotlockerDir creates and returns the directory containing Dotlocker's data
 func dotlockerDir() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
-	return path.Join(home, ".dotlocker"), nil
+
+	path := filepath.Join(home, ".dotlocker")
+
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		return "", err
+	}
+
+	return path, nil
 }
 
 // ConfigPath returns the path of the config file
@@ -27,26 +35,24 @@ func ConfigPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", err
-	}
 	return filepath.Join(dir, "config.yaml"), nil
 }
 
-// Save persists the user's configuration
-func Save(repoURL string) error {
-	viper.Set("repo_url", repoURL)
+// SaveConfig writes an entire config to disk
+func SaveConfig(v *viper.Viper, cfg Config) error {
+	v.Set("repo_url", cfg.RepoURL)
+	v.Set("repo_path", cfg.RepoPath)
 	return viper.WriteConfig()
 }
 
 // Load fetches the user's configuration
-func Load() (Config, error) {
-	if err := viper.ReadInConfig(); err != nil {
+func Load(v *viper.Viper) (Config, error) {
+	if err := v.ReadInConfig(); err != nil {
 		return Config{}, err
 	}
 
 	var cfg Config
-	if err := viper.Unmarshal(&cfg); err != nil {
+	if err := v.Unmarshal(&cfg); err != nil {
 		return Config{}, err
 	}
 
